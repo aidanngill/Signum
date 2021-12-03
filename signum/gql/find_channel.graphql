@@ -1,0 +1,24 @@
+# Find a channel by its username.
+
+query findChannel($login: String!) {
+  user(login: $login) {
+    id
+    login
+    displayName
+    description
+    createdAt
+    roles {
+      isPartner
+    }
+    stream {
+      id
+      title
+      type
+      viewersCount
+      createdAt
+      game {
+        name
+      }
+    }
+  }
+}
