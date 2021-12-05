@@ -162,6 +162,28 @@ class Account:
         await self._websocket.listen("stream-change-v1", self.user_id, self.authorization_token)
         await self._websocket.listen("community-points-user-v1", self.user_id, self.authorization_token)
     
+    async def is_following(self, channel: Channel) -> bool:
+        """ See if the account is following the given channel. """
+        data = await self.fetch_twitch_gql("ChatRestrictions", {
+            "channelLogin": channel.name
+        }, is_persisted=True)
+
+        return data["channel"]["self"]["follower"] is not None
+    
+    async def follow(self, channel: Channel) -> None:
+        """ Follow the given channel. """
+        await self.fetch_twitch_gql("FollowButton_FollowUser", {
+            "input": {
+                "disableNotifications": False,
+                "targetID": str(channel.id)
+            }
+        }, is_persisted=True)
+
+        log.info(f"Started following", extra={
+            "channel": channel.name,
+            "account": self.username
+        })
+
     async def claim_points(self, channel: Channel, claim_id: str) -> None:
         """ Claim the 50 points with the given ID on the given channel. """
         await self.fetch_twitch_gql("ClaimCommunityPoints", {

@@ -57,26 +57,29 @@ class Manager:
             log.warning(f"Failed to find user {user_id} from event callback")
             return
 
+        # TODO: Fix this up soon, define callbacks rather than a big ol' if/elif.
         if topic == "stream-change-v1":
-            for channel in self.channels:
-                if channel.id == message["channel_id"]:
-                    if message["type"] == "stream_up" and not channel.stream:
-                        channel.update(await self.accounts[0].fetch_channel(channel.name))
-                        log.info(f"Started streaming {channel.stream.game_name}", extra={
-                            "channel": channel.display_name
-                        })
+            channel = self._find_channel_by_id(message["channel_id"])
 
-                    elif message["type"] == "stream_down" and channel.stream:
-                        channel.stream = None
-                        log.info(f"Stopped streaming", extra={
-                            "channel": channel.display_name
-                        })
+            if not channel:
+                return
 
-                    break
+            if message["type"] == "stream_up" and not channel.is_streaming:
+                channel.update(await self.accounts[0].fetch_channel(channel.name))
+                log.info(f"Started streaming {channel.stream.game_name}", extra={
+                    "channel": channel.display_name
+                })
+
+            elif message["type"] == "stream_down" and channel.is_streaming:
+                channel.stream = None
+                log.info(f"Stopped streaming", extra={
+                    "channel": channel.display_name
+                })
 
         elif topic == "community-points-user-v1":
             if message["type"] == "points-earned":
                 channel = self._find_channel_by_id(message["data"]["balance"]["channel_id"])
+
                 log.info(
                     f"Gained {message['data']['point_gain']['total_points']} points "
                     f"({message['data']['balance']['balance']} total)",
@@ -117,9 +120,11 @@ class Manager:
         if len(self.channels) < 1:
             raise Exception("No valid channels were found")
         
-        # Check if we have claims available to start.
         for account in self.accounts:
             for channel in self.channels:
+                if not await account.is_following(channel):
+                    await account.follow(channel)
+
                 claim_id = await account.available_points(channel)
 
                 if claim_id is not None:
@@ -135,7 +140,11 @@ class Manager:
             # TODO: Follow users if not already following.
 
             # TODO: Mark only two channels per client.
+            tasks = []
+
             for account in self.accounts:
                 for channel in self.channels:
                     if channel.is_streaming:
-                        await account.watch_minute(channel)
+                        tasks.append(account.watch_minute(channel))
+            
+            await asyncio.gather(*tasks)
