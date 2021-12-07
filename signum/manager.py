@@ -137,8 +137,6 @@ class Manager:
 
             # Update all the channels while looping over clients.
             # TODO: Follow raids.
-            # TODO: Follow users if not already following.
-
             # TODO: Mark only two channels per client.
             tasks = []
 

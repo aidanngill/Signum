@@ -92,10 +92,16 @@ class Account:
         """
         async with self.session as session:
             async with session.get("https://www.twitch.tv/", raise_for_status=True) as resp:
-                search = re.search(r"\"Client-ID\":\"(.*?)\"", await resp.text())
+                text = await resp.text()
 
+        search = re.search(r"\"Client-ID\":\"(.*?)\"", text)
+
+        # TODO: More stable way to get client ID.
         if not search:
-            return None
+            search = re.search(r"clientId=\"(.*?)\"", text)
+
+            if not search:
+                return None
 
         return search.group(1)
     
